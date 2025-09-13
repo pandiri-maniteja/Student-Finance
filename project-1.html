@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Student Finance Manager</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      color: #333;
+    }
+
+    input, button {
+      padding: 8px;
+      margin: 5px;
+      width: 250px;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    table, th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+
+    .alert {
+      background: #ffc107;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      background: #ddd;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .progress {
+      height: 25px;
+      background-color: #4caf50;
+      color: white;
+      text-align: center;
+      line-height: 25px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Student Finance Manager</h1>
+
+<!-- Budget and Goal Settings -->
+<label>Monthly Budget (₹):</label><br>
+<input type="number" id="budget" placeholder="e.g., 10000"><br>
+
+<label>Savings Goal (₹):</label><br>
+<input type="number" id="goal" placeholder="e.g., 3000"><br>
+
+<!-- Add Expense -->
+<h2>Add Expense</h2>
+<input type="date" id="date">
+<input type="number" id="amount" placeholder="Amount ₹">
+<input type="text" id="desc" placeholder="Description (e.g., Food, Bus)">
+<button onclick="addExpense()">Add Expense</button>
+
+<!-- Alerts and Progress -->
+<div id="alertBox"></div>
+<div class="progress-bar">
+  <div class="progress" id="goalProgress">0%</div>
+</div>
+
+<!-- Expense Table -->
+<h2>Expense History</h2>
+<table id="expenseTable">
+  <tr>
+    <th>Date</th>
+    <th>Description</th>
+    <th>Amount (₹)</th>
+    <th>Category</th>
+  </tr>
+</table>
+
+<!-- Chart -->
+<h2>Expenses by Category</h2>
+<canvas id="chartCanvas" width="400" height="200"></canvas>
+
+<script>
+  const expenses = JSON.parse(localStorage.getItem("expenses") || "[]");
+
+  function categorize(desc) {
+    desc = desc.toLowerCase();
+    if (desc.includes("food")) return "Food";
+    if (desc.includes("bus") || desc.includes("uber")) return "Transport";
+    if (desc.includes("movie")) return "Entertainment";
+    if (desc.includes("bill")) return "Bills";
+    return "Others";
+  }
+
+  function updateDisplay() {
+    const table = document.getElementById("expenseTable");
+    // Clear old rows
+    table.innerHTML = `
+      <tr><th>Date</th><th>Description</th><th>Amount (₹)</th><th>Category</th></tr>
+    `;
+
+    let total = 0;
+    const categoryTotals = {};
+
+    expenses.forEach(e => {
+      total += e.amount;
+      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+
+      const row = `<tr>
+        <td>${e.date}</td>
+        <td>${e.desc}</td>
+        <td>${e.amount.toFixed(2)}</td>
+        <td>${e.category}</td>
+      </tr>`;
+      table.innerHTML += row;
+    });
+
+    // Alerts
+    const budget = parseFloat(document.getElementById("budget").value) || 0;
+    const goal = parseFloat(document.getElementById("goal").value) || 0;
+    const saved = Math.max(0, budget - total);
+    const percentSaved = goal ? Math.min(100, Math.round((saved / goal) * 100)) : 0;
+
+    const alertBox = document.getElementById("alertBox");
+    alertBox.innerHTML = "";
+    if (budget && total > budget) {
+      alertBox.innerHTML = `<div class="alert">⚠️ You have crossed your monthly budget!</div>`;
+    }
+
+    document.getElementById("goalProgress").style.width = percentSaved + "%";
+    document.getElementById("goalProgress").textContent = percentSaved + "%";
+
+    // Chart
+    const ctx = document.getElementById('chartCanvas').getContext('2d');
+    if (window.pieChart) window.pieChart.destroy();
+    window.pieChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: Object.keys(categoryTotals),
+        datasets: [{
+          data: Object.values(categoryTotals),
+          backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4CAF50', '#9C27B0']
+        }]
+      }
+    });
+  }
+
+  function addExpense() {
+    const date = document.getElementById("date").value;
+    const amount = parseFloat(document.getElementById("amount").value);
+    const desc = document.getElementById("desc").value;
+
+    if (!date || !amount || !desc) {
+      alert("Please fill all fields.");
+      return;
+    }
+
+    const category = categorize(desc);
+    expenses.push({ date, amount, desc, category });
+    localStorage.setItem("expenses", JSON.stringify(expenses));
+
+    document.getElementById("amount").value = "";
+    document.getElementById("desc").value = "";
+    updateDisplay();
+  }
+
+  // Load previous settings if available
+  document.getElementById("budget").value = localStorage.getItem("budget") || "";
+  document.getElementById("goal").value = localStorage.getItem("goal") || "";
+
+  document.getElementById("budget").addEventListener("input", e => {
+    localStorage.setItem("budget", e.target.value);
+    updateDisplay();
+  });
+
+  document.getElementById("goal").addEventListener("input", e => {
+    localStorage.setItem("goal", e.target.value);
+    updateDisplay();
+  });
+
+  updateDisplay();
+</script>
+
+</body>
+</html>
